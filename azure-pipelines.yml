@@ -1,0 +1,64 @@
+trigger: none
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  # Replace this with the Azure DevOps service connection name.
+  azureServiceConnection: 'sc-kiteworks-azure'
+  terraformWorkingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+  tfStateResourceGroup: 'rg-kiteworks-tfstate'
+  tfStateStorageAccount: 'sakiteworkstfstate1'
+  tfStateContainer: 'tfstate'
+  tfStateKey: 'resource-groups.terraform.tfstate'
+  terraformVersion: '1.9.8'
+
+stages:
+- stage: DeployFoundation
+  displayName: Deploy environment resource groups
+  jobs:
+  - job: Terraform
+    displayName: Deploy environment resource groups with Terraform
+    steps:
+    - bash: |
+        set -euo pipefail
+
+        curl -fsSLo terraform.zip \
+          "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+        unzip -oq terraform.zip
+        sudo install -m 0755 terraform /usr/local/bin/terraform
+        terraform version
+      displayName: Install Terraform
+
+    - task: AzureCLI@2
+      displayName: Terraform init, validate, plan, and apply
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: bash
+        scriptLocation: inlineScript
+        workingDirectory: '$(terraformWorkingDirectory)'
+        addSpnToEnvironment: true
+        inlineScript: |
+          set -euo pipefail
+
+          az account show --output table
+
+          export ARM_USE_CLI=true
+          export ARM_USE_AZUREAD=true
+
+          terraform init \
+            -backend-config="resource_group_name=$(tfStateResourceGroup)" \
+            -backend-config="storage_account_name=$(tfStateStorageAccount)" \
+            -backend-config="container_name=$(tfStateContainer)" \
+            -backend-config="key=$(tfStateKey)"
+
+          terraform fmt -check -recursive
+          terraform validate
+
+          terraform plan -out=tfplan
+
+          terraform apply -auto-approve tfplan
+
+          terraform output
