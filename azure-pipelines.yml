@@ -9,7 +9,7 @@ variables:
   # Replace this with the Azure DevOps service connection name.
   azureServiceConnection: 'sc-kiteworks-azure'
   terraformWorkingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-  tfStateResourceGroup: 'rg-kiteworks-tfstate'
+  tfStateResourceGroup: 'rg-kiteworkstest-platform'
   tfStateStorageAccount: 'sakiteworkstfstate1'
   tfStateContainer: 'tfstate'
   tfStateKey: 'resource-groups.terraform.tfstate'
