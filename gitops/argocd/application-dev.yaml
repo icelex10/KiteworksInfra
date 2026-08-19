@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kiteworks-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/icelex10/KiteworksTestApp.git
+    targetRevision: dev
+    path: gitops/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kiteworks-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
