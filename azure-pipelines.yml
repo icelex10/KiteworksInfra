@@ -2,11 +2,23 @@ trigger: none
 
 pr: none
 
+parameters:
+- name: destroyAfterDelay
+  displayName: Destroy all Terraform-managed resources after deployment
+  type: string
+  default: 'false'
+  values:
+  - 'false'
+  - 'true'
+- name: destroyDelayMinutes
+  displayName: Minutes to wait before destruction
+  type: string
+  default: '60'
+
 pool:
   vmImage: ubuntu-latest
 
 variables:
-  # Replace this with the Azure DevOps service connection name.
   azureServiceConnection: 'sc-kiteworks-azure'
   terraformWorkingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
   tfStateResourceGroup: 'rg-kiteworkstest-platform'
@@ -76,3 +88,11 @@ stages:
           "$(terraformCommand)" apply -auto-approve tfplan
 
           "$(terraformCommand)" output
+
+          if [[ '${{ parameters.destroyAfterDelay }}' == 'true' ]]; then
+            echo "Destroy enabled; waiting ${{ parameters.destroyDelayMinutes }} minutes."
+            sleep "${{ parameters.destroyDelayMinutes }}m"
+            "$(terraformCommand)" destroy \
+              -lock-timeout=5m \
+              -auto-approve
+          fi
