@@ -5,8 +5,8 @@ variable "location" {
 }
 
 variable "aks_node_count" {
-  type        = number
-  default     = 1
+  type    = number
+  default = 1
 }
 
 variable "aks_vm_size" {
