@@ -89,6 +89,31 @@ stages:
 
           "$(terraformCommand)" output
 
+          helm version
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
+
+          for environment in dev staging prod; do
+            aks_resource_group="rg-kiteworks-${environment}"
+            aks_name="aks-kiteworks-${environment}"
+
+            az aks get-credentials \
+              --resource-group "$aks_resource_group" \
+              --name "$aks_name" \
+              --admin \
+              --overwrite-existing
+
+            helm upgrade --install argocd argo/argo-cd \
+              --namespace argocd \
+              --create-namespace \
+              --set server.service.type=ClusterIP \
+              --wait \
+              --timeout 10m
+
+            kubectl apply \
+              --filename "$(System.DefaultWorkingDirectory)/gitops/argocd/application-${environment}.yaml"
+          done
+
           if [[ '${{ parameters.destroyAfterDelay }}' == 'true' ]]; then
             echo "Destroy enabled; waiting ${{ parameters.destroyDelayMinutes }} minutes."
             sleep "${{ parameters.destroyDelayMinutes }}m"
