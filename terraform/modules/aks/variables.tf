@@ -22,7 +22,7 @@ variable "node_count" {
 variable "vm_size" {
   description = "VM size for the system node pool."
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B2pls_v2"
 }
 
 variable "min_count" {

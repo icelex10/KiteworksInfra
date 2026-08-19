@@ -12,7 +12,7 @@ variable "aks_node_count" {
 variable "aks_vm_size" {
   description = "VM size for the AKS system node pools."
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B2pls_v2"
 }
 
 variable "container_registry_name" {
