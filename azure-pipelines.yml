@@ -56,6 +56,12 @@ stages:
           export ARM_OIDC_TOKEN="$idToken"
           export ARM_SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
 
+          az storage blob list \
+            --account-name "$(tfStateStorageAccount)" \
+            --container-name "$(tfStateContainer)" \
+            --auth-mode login \
+            --output table
+
           "$(terraformCommand)" init \
             -backend-config="resource_group_name=$(tfStateResourceGroup)" \
             -backend-config="storage_account_name=$(tfStateStorageAccount)" \
