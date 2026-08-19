@@ -25,7 +25,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     network_plugin      = "azure"
     network_plugin_mode = "overlay"
     network_policy      = "azure"
-    load_balancer_sku    = "standard"
+    load_balancer_sku   = "standard"
   }
 
   tags = var.tags
