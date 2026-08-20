@@ -1,8 +1,10 @@
 trigger: none
-
 pr: none
 
 parameters:
+- name: lockId
+  displayName: Lock ID from the "Error acquiring the state lock" message
+  type: string
 - name: tfStateKey
   displayName: State blob to unlock
   type: string
@@ -17,30 +19,57 @@ pool:
 
 variables:
   azureServiceConnection: 'sc-kiteworks-azure'
+  terraformDir: '$(System.DefaultWorkingDirectory)/terraform'
   tfStateResourceGroup: 'rg-kiteworkstest-platform'
   tfStateStorageAccount: 'sakiteworkstfstate1'
   tfStateContainer: 'tfstate'
+  terraformVersion: '1.9.8'
 
 stages:
 - stage: UnlockState
-  displayName: Break Terraform state lease
+  displayName: Force-unlock Terraform state
   jobs:
   - job: Unlock
-    displayName: Break stale blob lease on Terraform state
     steps:
+    - bash: |
+        set -euo pipefail
+        if [ "${{ parameters.confirmUnlock }}" != "True" ]; then
+          echo "##vso[task.logissue type=error]Confirmation checkbox not set. No action taken."
+          exit 1
+        fi
+        install_dir="$(Agent.TempDirectory)/terraform-bin"
+        mkdir -p "$install_dir"
+        curl -fsSLo terraform.zip "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip"
+        unzip -oq terraform.zip -d "$install_dir"
+        chmod +x "$install_dir/terraform"
+        echo "##vso[task.setvariable variable=terraformCommand]$install_dir/terraform"
+      displayName: Install Terraform
+
     - task: AzureCLI@2
-      displayName: Break blob lease
+      displayName: Force-unlock state
       inputs:
         azureSubscription: '$(azureServiceConnection)'
         scriptType: bash
         scriptLocation: inlineScript
+        workingDirectory: '$(terraformDir)'
+        addSpnToEnvironment: true
         inlineScript: |
           set -euo pipefail
-          az storage blob lease break \
-            --account-name "$(tfStateStorageAccount)" \
-            --container-name "$(tfStateContainer)" \
-            --blob-name "${{ parameters.tfStateKey }}" \
-            --auth-mode login \
-            --output table
 
-          echo "Lease broken for ${{ parameters.tfStateKey }}"
+          export ARM_USE_OIDC=true
+          export ARM_USE_AZUREAD=true
+          export ARM_CLIENT_ID="$servicePrincipalId"
+          export ARM_TENANT_ID="$tenantId"
+          export ARM_OIDC_TOKEN="$idToken"
+          export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+
+          tf="$(terraformCommand)"
+
+          $tf init \
+            -backend-config="resource_group_name=$(tfStateResourceGroup)" \
+            -backend-config="storage_account_name=$(tfStateStorageAccount)" \
+            -backend-config="container_name=$(tfStateContainer)" \
+            -backend-config="key=${{ parameters.tfStateKey }}"
+
+          $tf force-unlock -force "${{ parameters.lockId }}"
+
