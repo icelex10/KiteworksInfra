@@ -25,6 +25,12 @@ variable "vm_size" {
   default     = "Standard_D2s_v7"
 }
 
+variable "temporary_name_for_rotation" {
+  description = "Temporary node pool name used when Azure rotates the default node pool."
+  type        = string
+  default     = "sysrotate"
+}
+
 variable "min_count" {
   description = "Minimum number of nodes in the system node pool."
   type        = number
