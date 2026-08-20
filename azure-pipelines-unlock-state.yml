@@ -39,7 +39,7 @@ stages:
           az storage blob lease break \
             --account-name "$(tfStateStorageAccount)" \
             --container-name "$(tfStateContainer)" \
-            --name "${{ parameters.tfStateKey }}" \
+            --blob-name "${{ parameters.tfStateKey }}" \
             --auth-mode login \
             --output table
 
