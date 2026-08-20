@@ -17,6 +17,11 @@ parameters:
   type: string
   default: 'true'
   values: ['false', 'true']
+- name: installCertManager
+  displayName: Install cert-manager and Let's Encrypt staging issuer
+  type: string
+  default: 'true'
+  values: ['false', 'true']
 - name: destroyAfterDelay
   displayName: Destroy everything after a delay
   type: string
@@ -58,13 +63,13 @@ stages:
 
     - task: HelmInstaller@1
       displayName: Install Helm
-      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true')))
+      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true'), eq('${{ parameters.installCertManager }}', 'true')))
       inputs:
         helmVersionToInstall: '3.16.4'
 
     - task: KubectlInstaller@0
       displayName: Install kubectl
-      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true')))
+      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true'), eq('${{ parameters.installCertManager }}', 'true')))
       inputs:
         kubectlVersion: 'latest'
 
@@ -107,7 +112,7 @@ stages:
           $tf plan -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
           $tf apply -lock-timeout=5m -auto-approve tfplan
 
-          if [ "${{ parameters.installNginxIngress }}" = "true" ] || [ "${{ parameters.installArgoCD }}" = "true" ]; then
+          if [ "${{ parameters.installNginxIngress }}" = "true" ] || [ "${{ parameters.installArgoCD }}" = "true" ] || [ "${{ parameters.installCertManager }}" = "true" ]; then
             ingress_ips_json="$($tf output -json ingress_public_ip)"
 
             if [ "${{ parameters.installNginxIngress }}" = "true" ]; then
@@ -117,6 +122,11 @@ stages:
 
             if [ "${{ parameters.installArgoCD }}" = "true" ]; then
               helm repo add argo https://argoproj.github.io/argo-helm
+              helm repo update
+            fi
+
+            if [ "${{ parameters.installCertManager }}" = "true" ]; then
+              helm repo add jetstack https://charts.jetstack.io
               helm repo update
             fi
 
@@ -136,6 +146,15 @@ stages:
                   --set controller.service.loadBalancerIP="$ingress_ip" \
                   --set-string 'controller.service.annotations.service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path=/healthz' \
                   --wait --timeout 10m
+              fi
+
+              if [ "${{ parameters.installCertManager }}" = "true" ]; then
+                helm upgrade --install cert-manager jetstack/cert-manager \
+                  --namespace cert-manager --create-namespace \
+                  --set crds.enabled=true \
+                  --wait --timeout 10m
+
+                kubectl apply -f "$(System.DefaultWorkingDirectory)/gitops/cert-manager/clusterissuer-letsencrypt-staging.yaml"
               fi
 
               if [ "${{ parameters.installArgoCD }}" = "true" ]; then
