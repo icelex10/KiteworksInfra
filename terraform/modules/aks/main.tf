@@ -6,12 +6,13 @@ resource "azurerm_kubernetes_cluster" "this" {
   sku_tier            = "Free"
 
   default_node_pool {
-    name                 = "system"
-    node_count           = var.node_count
-    vm_size              = var.vm_size
-    auto_scaling_enabled = true
-    min_count            = var.min_count
-    max_count            = var.max_count
+    name                        = "system"
+    node_count                  = var.node_count
+    vm_size                     = var.vm_size
+    temporary_name_for_rotation = var.temporary_name_for_rotation
+    auto_scaling_enabled        = true
+    min_count                   = var.min_count
+    max_count                   = var.max_count
   }
 
   identity {

@@ -55,12 +55,13 @@ resource "azurerm_resource_group" "this" {
 module "aks" {
   for_each = local.environments
 
-  source              = "./modules/aks"
-  name                = "aks-kiteworks-${each.key}"
-  location            = each.value.location
-  resource_group_name = azurerm_resource_group.this[each.key].name
-  node_count          = var.aks_node_count
-  vm_size             = var.aks_vm_size
+  source                      = "./modules/aks"
+  name                        = "aks-kiteworks-${each.key}"
+  location                    = each.value.location
+  resource_group_name         = azurerm_resource_group.this[each.key].name
+  node_count                  = var.aks_node_count
+  vm_size                     = var.aks_vm_size
+  temporary_name_for_rotation = "sysrotate"
 
   tags = {
     environment = each.key
