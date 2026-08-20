@@ -23,17 +23,17 @@ parameters:
   default: 'true'
   values: ['false', 'true']
 - name: destroyAfterDelay
-  displayName: Destroy everything after a delay
+  displayName: Delayed TF destroy
   type: string
   default: 'false'
   values: ['false', 'true']
 - name: destroyEverything
-  displayName: Destroy all Terraform-managed infrastructure
+  displayName: Destroy all Terraform-managed infrastructure NOW
   type: string
   default: 'false'
   values: ['false', 'true']
 - name: destroyDelayMinutes
-  displayName: Delay in minutes before destroy
+  displayName: Delay in minutes for delayed destroy
   type: string
   default: '60'
 
@@ -68,13 +68,13 @@ stages:
 
     - task: HelmInstaller@1
       displayName: Install Helm
-      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true'), eq('${{ parameters.installCertManager }}', 'true')))
+      condition: and(succeeded(), or(eq('${{ parameters.destroyEverything }}', 'true'), eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true'), eq('${{ parameters.installCertManager }}', 'true')))
       inputs:
         helmVersionToInstall: '3.16.4'
 
     - task: KubectlInstaller@0
       displayName: Install kubectl
-      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true'), eq('${{ parameters.installCertManager }}', 'true')))
+      condition: and(succeeded(), or(eq('${{ parameters.destroyEverything }}', 'true'), eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true'), eq('${{ parameters.installCertManager }}', 'true')))
       inputs:
         kubectlVersion: 'latest'
 
@@ -117,6 +117,21 @@ stages:
           if [ "${{ parameters.destroyEverything }}" = "true" ]; then
             envs="dev staging prod"
             var_json='["dev","staging","prod"]'
+
+            for e in $envs; do
+              if az aks get-credentials -g "rg-kiteworks-$e" -n "aks-kiteworks-$e" --admin --overwrite-existing; then
+                helm uninstall ingress-nginx --namespace ingress-nginx --ignore-not-found
+                kubectl delete service ingress-nginx-controller --namespace ingress-nginx --ignore-not-found --wait=true
+
+                for attempt in $(seq 1 30); do
+                  if ! kubectl get service ingress-nginx-controller --namespace ingress-nginx >/dev/null 2>&1; then
+                    break
+                  fi
+                  sleep 2
+                done
+              fi
+            done
+
             $tf plan -destroy -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
             $tf apply -lock-timeout=5m -auto-approve tfplan
             exit 0
