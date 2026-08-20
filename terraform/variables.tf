@@ -1,7 +1,17 @@
 variable "location" {
-  description = "Azure region for the environment resource groups."
+  description = "Default Azure region for shared platform resources and environments without an override."
   type        = string
   default     = "centralus"
+}
+
+variable "environment_locations" {
+  description = "Azure region for each AKS environment and its ingress public IP."
+  type        = map(string)
+  default = {
+    dev     = "centralus"
+    staging = "eastus"
+    prod    = "eastus2"
+  }
 }
 
 variable "deploy_environments" {

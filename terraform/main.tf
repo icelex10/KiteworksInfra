@@ -1,13 +1,16 @@
 locals {
   all_environments = {
     dev = {
-      name = "rg-kiteworks-dev"
+      name     = "rg-kiteworks-dev"
+      location = lookup(var.environment_locations, "dev", var.location)
     }
     staging = {
-      name = "rg-kiteworks-staging"
+      name     = "rg-kiteworks-staging"
+      location = lookup(var.environment_locations, "staging", var.location)
     }
     prod = {
-      name = "rg-kiteworks-prod"
+      name     = "rg-kiteworks-prod"
+      location = lookup(var.environment_locations, "prod", var.location)
     }
   }
 
@@ -40,7 +43,7 @@ resource "azurerm_resource_group" "this" {
   for_each = local.environments
 
   name     = each.value.name
-  location = var.location
+  location = each.value.location
 
   tags = {
     environment = each.key
@@ -54,7 +57,7 @@ module "aks" {
 
   source              = "./modules/aks"
   name                = "aks-kiteworks-${each.key}"
-  location            = var.location
+  location            = each.value.location
   resource_group_name = azurerm_resource_group.this[each.key].name
   node_count          = var.aks_node_count
   vm_size             = var.aks_vm_size
@@ -71,7 +74,7 @@ module "ingress_public_ip" {
 
   source              = "./modules/ingress-public-ip"
   name                = "pip-kiteworks-ingress-${each.key}"
-  location            = var.location
+  location            = each.value.location
   resource_group_name = module.aks[each.key].node_resource_group
   domain_name_label   = "${var.ingress_dns_prefix}-${each.key}"
 
