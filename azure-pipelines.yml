@@ -2,6 +2,11 @@ trigger: none
 pr: none
 
 parameters:
+- name: targetEnvironment
+  displayName: Environment to deploy
+  type: string
+  default: 'dev'
+  values: ['dev', 'staging', 'prod', 'all']
 - name: installArgoCD
   displayName: Install Argo CD
   type: string
@@ -86,26 +91,36 @@ stages:
 
           $tf fmt -check -recursive
           $tf validate
-          $tf plan -lock-timeout=5m -out=tfplan
+
+          env="${{ parameters.targetEnvironment }}"
+          if [ "$env" = "all" ]; then
+            envs="dev staging prod"
+            targets=()
+          else
+            envs="$env"
+            targets=(-target="azurerm_resource_group.this[\"$env\"]" -target="module.aks[\"$env\"]" -target="azurerm_role_assignment.aks_acr_pull[\"$env\"]")
+          fi
+
+          $tf plan -lock-timeout=5m -out=tfplan "${targets[@]}"
           $tf apply -lock-timeout=5m -auto-approve tfplan
 
           if [ "${{ parameters.installArgoCD }}" = "true" ]; then
             helm repo add argo https://argoproj.github.io/argo-helm
             helm repo update
 
-            for env in dev staging prod; do
-              az aks get-credentials -g "rg-kiteworks-$env" -n "aks-kiteworks-$env" --admin --overwrite-existing
+            for e in $envs; do
+              az aks get-credentials -g "rg-kiteworks-$e" -n "aks-kiteworks-$e" --admin --overwrite-existing
 
               helm upgrade --install argocd argo/argo-cd \
                 -n argocd --create-namespace \
                 --set server.service.type=ClusterIP \
                 --wait --timeout 10m
 
-              kubectl apply -f "$(System.DefaultWorkingDirectory)/gitops/argocd/application-$env.yaml"
+              kubectl apply -f "$(System.DefaultWorkingDirectory)/gitops/argocd/application-$e.yaml"
             done
           fi
 
           if [ "${{ parameters.destroyAfterDelay }}" = "true" ]; then
             sleep "${{ parameters.destroyDelayMinutes }}m"
-            $tf destroy -lock-timeout=5m -auto-approve
+            $tf destroy -lock-timeout=5m -auto-approve "${targets[@]}"
           fi
