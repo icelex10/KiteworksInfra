@@ -3,10 +3,10 @@ pr: none
 
 parameters:
 - name: targetEnvironment
-  displayName: Environments to deploy (cumulative)
+  displayName: Environments to deploy (cumulative, or none)
   type: string
   default: 'dev'
-  values: ['dev', 'staging', 'all']
+  values: ['none', 'dev', 'staging', 'all']
 - name: installArgoCD
   displayName: Install Argo CD
   type: string
@@ -28,7 +28,7 @@ parameters:
   default: 'false'
   values: ['false', 'true']
 - name: destroyEverything
-  displayName: Destroy all Terraform-managed infrastructure NOW
+  displayName: Destroy TF-managed infrastructure NOW
   type: string
   default: 'false'
   values: ['false', 'true']
@@ -107,8 +107,14 @@ stages:
           $tf fmt -check -recursive
           $tf validate
 
+          if [ "${{ parameters.destroyAfterDelay }}" = "true" ] && [ "${{ parameters.destroyEverything }}" = "true" ]; then
+            echo "destroyAfterDelay and destroyEverything cannot both be true"
+            exit 1
+          fi
+
           env="${{ parameters.targetEnvironment }}"
           case "$env" in
+            none)    envs="";                 var_json='[]' ;;
             dev)     envs="dev";              var_json='["dev"]' ;;
             staging) envs="dev staging";      var_json='["dev","staging"]' ;;
             all)     envs="dev staging prod"; var_json='["dev","staging","prod"]' ;;
@@ -134,6 +140,15 @@ stages:
 
             $tf plan -destroy -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
             $tf apply -lock-timeout=5m -auto-approve tfplan
+            exit 0
+          fi
+
+          if [ "$env" = "none" ]; then
+            if [ "${{ parameters.destroyAfterDelay }}" = "true" ]; then
+              echo "destroyAfterDelay requires a selected environment"
+              exit 1
+            fi
+            echo "No environments selected; skipping Terraform apply and platform installation"
             exit 0
           fi
 
