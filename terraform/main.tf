@@ -21,6 +21,21 @@ moved {
   to   = module.aks["dev"].azurerm_kubernetes_cluster.this
 }
 
+moved {
+  from = azurerm_public_ip.ingress["dev"]
+  to   = module.ingress_public_ip["dev"].azurerm_public_ip.this
+}
+
+moved {
+  from = azurerm_public_ip.ingress["staging"]
+  to   = module.ingress_public_ip["staging"].azurerm_public_ip.this
+}
+
+moved {
+  from = azurerm_public_ip.ingress["prod"]
+  to   = module.ingress_public_ip["prod"].azurerm_public_ip.this
+}
+
 resource "azurerm_resource_group" "this" {
   for_each = local.environments
 
@@ -48,6 +63,23 @@ module "aks" {
     environment = each.key
     managed_by  = "terraform"
     project     = "kiteworks"
+  }
+}
+
+module "ingress_public_ip" {
+  for_each = local.environments
+
+  source              = "./modules/ingress-public-ip"
+  name                = "pip-kiteworks-ingress-${each.key}"
+  location            = var.location
+  resource_group_name = module.aks[each.key].node_resource_group
+  domain_name_label   = "${var.ingress_dns_prefix}-${each.key}"
+
+  tags = {
+    environment = each.key
+    managed_by  = "terraform"
+    project     = "kiteworks"
+    purpose     = "nginx-ingress"
   }
 }
 

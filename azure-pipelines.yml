@@ -12,6 +12,11 @@ parameters:
   type: string
   default: 'false'
   values: ['false', 'true']
+- name: installNginxIngress
+  displayName: Install NGINX Ingress
+  type: string
+  default: 'true'
+  values: ['false', 'true']
 - name: destroyAfterDelay
   displayName: Destroy everything after a delay
   type: string
@@ -53,13 +58,13 @@ stages:
 
     - task: HelmInstaller@1
       displayName: Install Helm
-      condition: and(succeeded(), eq('${{ parameters.installArgoCD }}', 'true'))
+      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true')))
       inputs:
-        helmVersionToInstall: 'latest'
+        helmVersionToInstall: '3.16.4'
 
     - task: KubectlInstaller@0
       displayName: Install kubectl
-      condition: and(succeeded(), eq('${{ parameters.installArgoCD }}', 'true'))
+      condition: and(succeeded(), or(eq('${{ parameters.installArgoCD }}', 'true'), eq('${{ parameters.installNginxIngress }}', 'true')))
       inputs:
         kubectlVersion: 'latest'
 
@@ -102,19 +107,44 @@ stages:
           $tf plan -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
           $tf apply -lock-timeout=5m -auto-approve tfplan
 
-          if [ "${{ parameters.installArgoCD }}" = "true" ]; then
-            helm repo add argo https://argoproj.github.io/argo-helm
-            helm repo update
+          if [ "${{ parameters.installNginxIngress }}" = "true" ] || [ "${{ parameters.installArgoCD }}" = "true" ]; then
+            ingress_ips_json="$($tf output -json ingress_public_ip)"
+
+            if [ "${{ parameters.installNginxIngress }}" = "true" ]; then
+              helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+              helm repo update
+            fi
+
+            if [ "${{ parameters.installArgoCD }}" = "true" ]; then
+              helm repo add argo https://argoproj.github.io/argo-helm
+              helm repo update
+            fi
 
             for e in $envs; do
               az aks get-credentials -g "rg-kiteworks-$e" -n "aks-kiteworks-$e" --admin --overwrite-existing
 
-              helm upgrade --install argocd argo/argo-cd \
-                -n argocd --create-namespace \
-                --set server.service.type=ClusterIP \
-                --wait --timeout 10m
+              if [ "${{ parameters.installNginxIngress }}" = "true" ]; then
+                ingress_ip="$(jq -r --arg environment "$e" '.[$environment]' <<< "$ingress_ips_json")"
+                if [ -z "$ingress_ip" ] || [ "$ingress_ip" = "null" ]; then
+                  echo "No ingress public IP found for $e"
+                  exit 1
+                fi
 
-              kubectl apply -f "$(System.DefaultWorkingDirectory)/gitops/argocd/application-$e.yaml"
+                helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+                  --namespace ingress-nginx --create-namespace \
+                  --set controller.service.type=LoadBalancer \
+                  --set controller.service.loadBalancerIP="$ingress_ip" \
+                  --wait --timeout 10m
+              fi
+
+              if [ "${{ parameters.installArgoCD }}" = "true" ]; then
+                helm upgrade --install argocd argo/argo-cd \
+                  -n argocd --create-namespace \
+                  --set server.service.type=ClusterIP \
+                  --wait --timeout 10m
+
+                kubectl apply -f "$(System.DefaultWorkingDirectory)/gitops/argocd/application-$e.yaml"
+              fi
             done
           fi
 

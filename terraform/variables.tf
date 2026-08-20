@@ -33,6 +33,12 @@ variable "container_registry_resource_group_name" {
   default     = "rg-kiteworkstest-platform"
 }
 
+variable "ingress_dns_prefix" {
+  description = "Globally unique prefix for Azure-provided ingress DNS names."
+  type        = string
+  default     = "kiteworkstest"
+}
+
 variable "acr_push_principal_object_id" {
   description = "Optional object ID of the build identity allowed to push images to ACR."
   type        = string

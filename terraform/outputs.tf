@@ -22,3 +22,13 @@ output "container_registry_login_server" {
   description = "Login server used by the build pipeline to publish container images."
   value       = azurerm_container_registry.this.login_server
 }
+
+output "ingress_public_ip" {
+  description = "Static public IP addresses assigned to the NGINX ingress controllers."
+  value       = { for environment, public_ip in module.ingress_public_ip : environment => public_ip.ip_address }
+}
+
+output "ingress_fqdn" {
+  description = "Azure-provided DNS names assigned to the NGINX ingress controllers."
+  value       = { for environment, public_ip in module.ingress_public_ip : environment => public_ip.fqdn }
+}
