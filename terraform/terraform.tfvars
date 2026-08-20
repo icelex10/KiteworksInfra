@@ -1,9 +1,9 @@
 location = "centralus"
 
 environment_locations = {
-	dev     = "centralus"
-	staging = "eastus"
-	prod    = "eastus2"
+  dev     = "centralus"
+  staging = "eastus"
+  prod    = "eastus2"
 }
 
 container_registry_name                = "acrkiteworkstestapp1"
