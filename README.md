@@ -7,8 +7,10 @@ Terraform provisions the Kiteworks AKS environments, shared ACR, and the static 
 Each selected AKS cluster receives:
 
 - One Standard static Azure public IP in the AKS node resource group.
-- One Azure-provided DNS name using `centralus.cloudapp.azure.com`.
+- One Azure-provided DNS name in the environment's Azure region.
 - One NGINX Ingress Controller installed by the infrastructure pipeline.
+
+The default environment locations are `centralus` for dev, `eastus` for staging, and `eastus2` for prod. The shared ACR remains in Central US.
 
 The application repository keeps the application Service private (`ClusterIP`) and defines the HTTP Ingress rules that Argo CD applies.
 
