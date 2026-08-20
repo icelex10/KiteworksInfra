@@ -18,7 +18,7 @@ parameters:
   default: 'true'
   values: ['false', 'true']
 - name: installCertManager
-  displayName: Install cert-manager and Let's Encrypt staging issuer
+  displayName: Install cert-manager and Let's Encrypt issuers
   type: string
   default: 'true'
   values: ['false', 'true']
@@ -155,6 +155,7 @@ stages:
                   --wait --timeout 10m
 
                 kubectl apply -f "$(System.DefaultWorkingDirectory)/gitops/cert-manager/clusterissuer-letsencrypt-staging.yaml"
+                kubectl apply -f "$(System.DefaultWorkingDirectory)/gitops/cert-manager/clusterissuer-letsencrypt-prod.yaml"
               fi
 
               if [ "${{ parameters.installArgoCD }}" = "true" ]; then
