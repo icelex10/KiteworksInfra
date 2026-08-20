@@ -1,5 +1,5 @@
 locals {
-  environments = {
+  all_environments = {
     dev = {
       name = "rg-kiteworks-dev"
     }
@@ -9,6 +9,10 @@ locals {
     prod = {
       name = "rg-kiteworks-prod"
     }
+  }
+
+  environments = {
+    for env, cfg in local.all_environments : env => cfg if contains(var.deploy_environments, env)
   }
 }
 
