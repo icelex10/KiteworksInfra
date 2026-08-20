@@ -3,10 +3,10 @@ pr: none
 
 parameters:
 - name: targetEnvironment
-  displayName: Environment to deploy
+  displayName: Environments to deploy (cumulative)
   type: string
   default: 'dev'
-  values: ['dev', 'staging', 'prod', 'all']
+  values: ['dev', 'staging', 'all']
 - name: installArgoCD
   displayName: Install Argo CD
   type: string
@@ -93,15 +93,13 @@ stages:
           $tf validate
 
           env="${{ parameters.targetEnvironment }}"
-          if [ "$env" = "all" ]; then
-            envs="dev staging prod"
-            targets=()
-          else
-            envs="$env"
-            targets=(-target="azurerm_resource_group.this[\"$env\"]" -target="module.aks[\"$env\"]" -target="azurerm_role_assignment.aks_acr_pull[\"$env\"]")
-          fi
+          case "$env" in
+            dev)     envs="dev";              var_json='["dev"]' ;;
+            staging) envs="dev staging";      var_json='["dev","staging"]' ;;
+            all)     envs="dev staging prod"; var_json='["dev","staging","prod"]' ;;
+          esac
 
-          $tf plan -lock-timeout=5m -out=tfplan "${targets[@]}"
+          $tf plan -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
           $tf apply -lock-timeout=5m -auto-approve tfplan
 
           if [ "${{ parameters.installArgoCD }}" = "true" ]; then
@@ -122,5 +120,5 @@ stages:
 
           if [ "${{ parameters.destroyAfterDelay }}" = "true" ]; then
             sleep "${{ parameters.destroyDelayMinutes }}m"
-            $tf destroy -lock-timeout=5m -auto-approve "${targets[@]}"
+            $tf destroy -lock-timeout=5m -auto-approve -var="deploy_environments=$var_json"
           fi

@@ -4,6 +4,12 @@ variable "location" {
   default     = "centralus"
 }
 
+variable "deploy_environments" {
+  description = "Which environments to create in this apply."
+  type        = list(string)
+  default     = ["dev", "staging", "prod"]
+}
+
 variable "aks_node_count" {
   type    = number
   default = 1
