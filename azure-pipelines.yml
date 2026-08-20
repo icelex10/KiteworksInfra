@@ -27,6 +27,11 @@ parameters:
   type: string
   default: 'false'
   values: ['false', 'true']
+- name: destroyEverything
+  displayName: Destroy all Terraform-managed infrastructure
+  type: string
+  default: 'false'
+  values: ['false', 'true']
 - name: destroyDelayMinutes
   displayName: Delay in minutes before destroy
   type: string
@@ -108,6 +113,14 @@ stages:
             staging) envs="dev staging";      var_json='["dev","staging"]' ;;
             all)     envs="dev staging prod"; var_json='["dev","staging","prod"]' ;;
           esac
+
+          if [ "${{ parameters.destroyEverything }}" = "true" ]; then
+            envs="dev staging prod"
+            var_json='["dev","staging","prod"]'
+            $tf plan -destroy -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
+            $tf apply -lock-timeout=5m -auto-approve tfplan
+            exit 0
+          fi
 
           $tf plan -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
           $tf apply -lock-timeout=5m -auto-approve tfplan
