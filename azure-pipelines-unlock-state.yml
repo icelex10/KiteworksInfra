@@ -1,0 +1,46 @@
+trigger: none
+
+pr: none
+
+parameters:
+- name: tfStateKey
+  displayName: State blob to unlock
+  type: string
+  default: 'resource-groups.terraform.tfstate'
+- name: confirmUnlock
+  displayName: I confirm no other pipeline run is currently using this state
+  type: boolean
+  default: false
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  azureServiceConnection: 'sc-kiteworks-azure'
+  tfStateResourceGroup: 'rg-kiteworkstest-platform'
+  tfStateStorageAccount: 'sakiteworkstfstate1'
+  tfStateContainer: 'tfstate'
+
+stages:
+- stage: UnlockState
+  displayName: Break Terraform state lease
+  jobs:
+  - job: Unlock
+    displayName: Break stale blob lease on Terraform state
+    steps:
+    - task: AzureCLI@2
+      displayName: Break blob lease
+      inputs:
+        azureSubscription: '$(azureServiceConnection)'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          set -euo pipefail
+          az storage blob lease break \
+            --account-name "$(tfStateStorageAccount)" \
+            --container-name "$(tfStateContainer)" \
+            --name "${{ parameters.tfStateKey }}" \
+            --auth-mode login \
+            --output table
+
+          echo "Lease broken for ${{ parameters.tfStateKey }}"
