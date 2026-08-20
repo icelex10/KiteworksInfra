@@ -8,6 +8,11 @@ output "resource_group_name" {
   value       = azurerm_kubernetes_cluster.this.resource_group_name
 }
 
+output "node_resource_group" {
+  description = "Node resource group used for cluster-managed Azure resources."
+  value       = azurerm_kubernetes_cluster.this.node_resource_group
+}
+
 output "kubelet_identity_object_id" {
   description = "Object ID used by the AKS kubelet identity for Azure resource access."
   value       = azurerm_kubernetes_cluster.this.kubelet_identity[0].object_id

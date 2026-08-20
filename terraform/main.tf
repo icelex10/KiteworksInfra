@@ -51,6 +51,24 @@ module "aks" {
   }
 }
 
+resource "azurerm_public_ip" "ingress" {
+  for_each = local.environments
+
+  name                = "pip-kiteworks-ingress-${each.key}"
+  location            = var.location
+  resource_group_name = module.aks[each.key].node_resource_group
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  domain_name_label   = "${var.ingress_dns_prefix}-${each.key}"
+
+  tags = {
+    environment = each.key
+    managed_by  = "terraform"
+    project     = "kiteworks"
+    purpose     = "nginx-ingress"
+  }
+}
+
 resource "azurerm_container_registry" "this" {
   name                          = var.container_registry_name
   resource_group_name           = var.container_registry_resource_group_name
