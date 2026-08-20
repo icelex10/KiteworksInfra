@@ -46,9 +46,9 @@ variables:
 
 stages:
 - stage: DeployFoundation
-  displayName: Deploy environment resource groups
+  displayName: Infrastructure
   jobs:
-  - job: Terraform
+  - job: DeployResources
     timeoutInMinutes: '90'
     steps:
     - bash: |
