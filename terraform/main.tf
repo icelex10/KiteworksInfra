@@ -99,6 +99,10 @@ resource "azurerm_container_registry" "this" {
     type = "SystemAssigned"
   }
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   tags = {
     managed_by = "terraform"
     project    = "kiteworks"
