@@ -22,9 +22,9 @@ Run `azure-pipelines.yml` with:
 - `installNginxIngress`: install or upgrade NGINX and bind it to the Terraform public IP.
 - `installArgoCD`: install Argo CD and apply its environment Application manifests.
 - `destroyAfterDelay`: optionally destroy the selected environments after a delay.
-- `destroyEverything`: immediately destroy all Terraform-managed environments; keep this `false` when using delayed destroy.
+- `destroyEverything`: immediately destroy all AKS environments while retaining the shared ACR; keep this `false` when using delayed destroy.
 
-The pipeline also supports `targetEnvironment: none` for validation without provisioning. Staging and prod use East US and East US 2 to avoid the Central US public-IP quota; the shared ACR remains in Central US.
+The pipeline also supports `targetEnvironment: none` for validation without provisioning. Staging and prod use East US and East US 2 to avoid the Central US public-IP quota; the shared ACR remains in Central US and survives environment teardown.
 
 ## Apply order
 

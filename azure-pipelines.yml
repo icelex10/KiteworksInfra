@@ -28,7 +28,7 @@ parameters:
   default: 'false'
   values: ['false', 'true']
 - name: destroyEverything
-  displayName: Destroy TF-managed infrastructure NOW
+  displayName: Destroy all AKS environments (retain shared ACR)
   type: string
   default: 'false'
   values: ['false', 'true']
@@ -123,8 +123,13 @@ stages:
           if [ "${{ parameters.destroyEverything }}" = "true" ]; then
             envs="dev staging prod"
             var_json='["dev","staging","prod"]'
+            destroy_targets=()
 
             for e in $envs; do
+              destroy_targets+=("-target=module.aks[\"$e\"]")
+              destroy_targets+=("-target=module.ingress_public_ip[\"$e\"]")
+              destroy_targets+=("-target=azurerm_resource_group.this[\"$e\"]")
+
               if az aks get-credentials -g "rg-kiteworks-$e" -n "aks-kiteworks-$e" --admin --overwrite-existing; then
                 helm uninstall ingress-nginx --namespace ingress-nginx --ignore-not-found
                 kubectl delete service ingress-nginx-controller --namespace ingress-nginx --ignore-not-found --wait=true
@@ -138,7 +143,7 @@ stages:
               fi
             done
 
-            $tf plan -destroy -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
+            $tf plan -destroy "${destroy_targets[@]}" -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
             $tf apply -lock-timeout=5m -auto-approve tfplan
             exit 0
           fi
@@ -150,6 +155,15 @@ stages:
             fi
             echo "No environments selected; skipping Terraform apply and platform installation"
             exit 0
+          fi
+
+          if [ "${{ parameters.destroyAfterDelay }}" = "true" ]; then
+            destroy_targets=()
+            for e in $envs; do
+              destroy_targets+=("-target=module.aks[\"$e\"]")
+              destroy_targets+=("-target=module.ingress_public_ip[\"$e\"]")
+              destroy_targets+=("-target=azurerm_resource_group.this[\"$e\"]")
+            done
           fi
 
           $tf plan -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
@@ -214,5 +228,6 @@ stages:
 
           if [ "${{ parameters.destroyAfterDelay }}" = "true" ]; then
             sleep "${{ parameters.destroyDelayMinutes }}m"
-            $tf destroy -lock-timeout=5m -auto-approve -var="deploy_environments=$var_json"
+            $tf plan -destroy "${destroy_targets[@]}" -lock-timeout=5m -out=tfplan -var="deploy_environments=$var_json"
+            $tf apply -lock-timeout=5m -auto-approve tfplan
           fi
