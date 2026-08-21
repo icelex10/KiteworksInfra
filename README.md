@@ -21,14 +21,16 @@ Run `azure-pipelines.yml` with:
 - `targetEnvironment`: `dev`, `staging`, or `all`.
 - `installNginxIngress`: install or upgrade NGINX and bind it to the Terraform public IP.
 - `installArgoCD`: install Argo CD and apply its environment Application manifests.
+- `destroyAfterDelay`: optionally destroy the selected environments after a delay.
+- `destroyEverything`: immediately destroy all Terraform-managed environments; keep this `false` when using delayed destroy.
 
-The current MVP uses HTTP and Azure-provided DNS names. TLS, custom DNS, and WAF are follow-up improvements.
+The pipeline also supports `targetEnvironment: none` for validation without provisioning. Staging and prod use East US and East US 2 to avoid the Central US public-IP quota; the shared ACR remains in Central US.
 
 ## Apply order
 
-1. Run the infrastructure pipeline with `installNginxIngress=true`.
-2. Run it with `installArgoCD=true` if Argo CD is not already installed.
+1. Run the infrastructure pipeline for the required environment.
+2. Enable NGINX, cert-manager, and Argo CD when creating a cluster.
 3. Push the application GitOps manifests.
 4. Verify the Ingress address and application rollout with `kubectl`.
 
-The public endpoint is owned by NGINX, not by the application Service.
+NGINX owns the public endpoint; application Services remain private `ClusterIP` services.
